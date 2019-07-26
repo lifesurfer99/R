@@ -1,0 +1,193 @@
+1. library 추가
+library(XML)
+library(data.table)
+library(stringr)
+library(ggplot2)
+library(magrittr) 
+library(dplyr)    
+
+1. URL 및 API 키 설정 
+
+api_url <- "http://openapi.molit.go.kr/OpenAPI_ToolInstallPackage/service/rest/RTMSOBJSvc/getRTMSDataSvcAptTradeDev?LAWD_CD="
+service_key <- "jJKI38JpuvnuWJq2ob%2BUz2%2BrALzuilS6529zUn2AcmXApZZueNM4vkC1WCVqG%2Fnn0X4uK1v2hp5SUcJeXcXLoQ%3D%3D"
+
+## service_key <- "s%2BWRBvAZvAf9AIQvAYaA2HD1skzHz6SB18h84u6Y80r1YkcRS2LY5RGGsn7Hbu6%2F2ohWFhv6R9xisD6UhBJJgg%3D%3D"
+
+##service_key <- "SdTkfuFpVmLjaUySuJu%2B2Y0QXZhWUrPK4qdNB42ec%2B4rLG3xYWZQFGIAWqT8mLEXH0HeT6oCsw6%2BMYXBHk%2BFaA%3D%3D"
+
+2. 지역 코드, 날짜 기간 설정
+
+#서울시 지역코드
+
+locCode <-c("11110","11140","11170","11200","11215","11230","11260","11290","11305","11320","11350","11380","11410","11440","11470","11500","11530","11545","11560","11590","11620","11650","11680","11710","11740")
+locCode_nm <-c("종로구","중구","용산구","성동구","광진구","동대문구","중랑구","성북구","강북구","도봉구","노원구","은평구","서대문구","마포구","양천구","강서구","구로구","금천구","영등포구","동작구","관악구","서초구","강남구","송파구","강동구")
+
+# 2015 ~ 2017
+datelist <-c("201501","201502","201503","201504","201505","201506","201507","201508","201509","201510","201511","201512","201401","201402","201403","201404","201405","201406","201407","201408","201409","201410","201411","201412","201601","201602","201603","201604","201605","201606","201607","201608","201609","201610","201611","201612")
+
+
+# 2017 ~ 2019.06
+
+datelist <-c("201701","201702","201703","201704","201705","201706","201707","201708","201709","201710","201711","201712","201801","201802","201803","201804","201805","201806","201807","201808","201809","201810","201811","201812","201901","201902","201903","201904","201905","201906")
+
+
+
+3. 요청 메시지 보내기
+
+urllist <- list()
+cnt <-0
+
+for(i in 1:length(locCode)){
+    for(j in 1:length(datelist)){
+        cnt = cnt + 1
+        urllist[cnt] <- paste0(api_url,locCode[i],"&DEAL_YMD=",datelist[j],"&serviceKey=",service_key) 
+  }
+}
+
+4. XML 문서 파싱 
+
+total<-list()
+
+for(i in 1:length(urllist)){
+    
+    item <- list()
+    item_temp_dt<-data.table()
+    
+    raw.data <- xmlTreeParse(urllist[i], useInternalNodes = TRUE,encoding = "utf-8")
+    rootNode <- xmlRoot(raw.data)
+    items <- rootNode[[2]][['items']]
+
+    size <- xmlSize(items)
+    
+    for(j in 1:size){
+        item_temp <- xmlSApply(items[[j]],xmlValue)
+        item_temp_dt <- data.table( price = item_temp[1],
+                                    con_year = item_temp[2],
+                                    year = item_temp[3],
+                                    street = item_temp[4],
+                                    dong = item_temp[11],
+                                    aptnm = item_temp[17],
+                                    month = item_temp[18],
+                                    dat = item_temp[19],
+                                    area = item_temp[21],
+                                    bungi = item_temp[22],
+									loc = item_temp[23],
+                                    floor = item_temp[24]
+                                    )
+        item[[j]]<-item_temp_dt
+    }
+    total[[i]] <- rbindlist(item)
+}
+
+result_apt_data <- rbindlist(total)
+save(result_apt_data, file="apt_item_sales_dt2.Rdata")
+
+5. data.table 형식으로 정제
+
+result_apt_data1<-get(load("apt_item_sales_dt.Rdata")) #load 2014~2016년도 데이터
+result_apt_data2<-get(load("apt_item_sales_dt2.Rdata")) #load 2017~2019년도 데이터
+
+6. 데이터 전처리 시작 
+
+apt_data1<-data.table(result_apt_data1)
+apt_data2<-data.table(result_apt_data2)
+apt_data3<-data.table(result_apt_data3)
+apt_data<-rbindlist(list(apt_data1,apt_data2))
+# 데이터 내 결측 값 확인
+colSums(is.na(apt_data)) 
+
+
+7.loc가 잘못 들어가 있는 데이터에 대한 처리
+
+index_na <-is.na(apt_data$floor)
+apt_data[index_na]$floor <- apt_data[index_na]$loc
+apt_data[index_na]$loc <- apt_data[index_na]$bungi
+apt_data[index_na]$bungi <- NA
+
+
+apt_data[,price:=as.character(price)%>%str_trim()%>%sub(",","",.)%>%as.numeric()]
+apt_data[,con_year:=as.character(con_year)%>%str_trim()%>%as.numeric()]
+apt_data[,year:=as.character(year)%>%str_trim()%>%as.numeric()]
+apt_data[between(as.numeric(as.character(month)),1,3),qrt:='Q1']
+apt_data[between(as.numeric(as.character(month)),4,6),qrt:='Q2']
+apt_data[between(as.numeric(as.character(month)),7,9),qrt:='Q3']
+apt_data[between(as.numeric(as.character(month)),10,12),qrt:='Q4']
+apt_data[,dong:=as.character(dong)%>%str_trim()]
+apt_data[,yyyyqrt:=paste0(year,qrt)]
+apt_data[,month:=as.character(month)%>%str_trim()%>%as.numeric()]
+apt_data[,yyyym:=paste0(year,month)]
+lapply(locCode,function(x){apt_data[loc==x,gu:=locCode_nm[which(locCode==x)]]})
+
+8. 쓸데없는 분기 전처리 
+apt_data <- apt_data[-c(which(apt_data$yyyyqrt=="2014NA"))]
+apt_data <- apt_data[-c(which(apt_data$yyyyqrt=="2015NA"))]
+apt_data <- apt_data[-c(which(apt_data$yyyyqrt=="2016NA"))]
+apt_data <- apt_data[-c(which(apt_data$yyyyqrt=="2017NA"))]
+apt_data <- apt_data[-c(which(apt_data$yyyyqrt=="2018NA"))]
+apt_data <- apt_data[-c(which(apt_data$yyyyqrt=="2019NA"))]
+
+9. 서울 아파트 전체 현황
+apt_data_seo_price <- aggregate(apt_data$price,by=list(apt_data$yyyyqrt),mean)
+names(apt_data_seo_price) <- c("yyyyqrt","price")
+ggplot(apt_data_seo_price,aes(x=yyyyqrt,y=price,group=1))+
+  geom_line() +
+  xlab("분기별")+
+  ylab("평균매매가격")+
+  theme(axis.text.x=element_text(angle=90))+
+  stat_smooth(method='lm')
+  
+
+
+10. 구별 매매 추이 분석 
+
+apt_data_by_gu_qrt <- aggregate(apt_data$price, by=list(apt_data$yyyyqrt,apt_data$gu), mean)
+names(apt_data_by_gu_qrt) <- c('yyyyqrt','gu','pricemean')
+
+ggplot(apt_data_by_gu_qrt,aes(x=yyyyqrt,y=pricemean,group=gu))+
+  geom_line()+
+  facet_wrap(~gu,scale='free_y', ncol=3)+
+  theme(axis.text.x=element_blank())+
+  stat_smooth(method="lm")
+  
+11. 시계열 데이터 분석 
+
+gu_meanprice <- as.data.table(aggregate(apt_data$price,by=list(apt_data$yyyyqrt,apt_data$gu),mean))
+head(gu_meanprice)
+
+#랜덤성 검정을 위한 패키지 로드
+library(lawstat)
+
+# 각 구별 매매가격의 랜덤성 검정 결과를 runs_p변수에 추가
+runs_p<-c()
+for(g in gu_list){
+  runs_p <- c(runs_p, runs.test(gu_meanprice[gu %in% g,price])$p.value)
+}
+
+ggplot(data.table(gu_list, runs_p), aes(x=gu_list, y=runs_p, group=1)) +
+  geom_line() + geom_point() +
+  ylab('P-value') + xlab('구') +
+  theme(axis.text.x=element_text(angle=90))
+  
+gu_list[which(runs_p>0.05)]  
+
+# 시계열 데이터 분석 
+gwanak_data <- apt_data[gu=="양천구",]
+gwanak_price <- aggregate(gwanak_data$price,by=list(gwanak_data$yyyyqrt),mean) 
+names(gwanak_price)<-c('yyyyqrt','price')
+tot_ts <- ts(gwanak_price$price,start=c(2014,1),frequency = 4)
+plot(stl(tot_ts,s.window = 'periodic'))
+    
+12. Arima 모형 사용 - 양천구 매매 추이 분석 
+
+library(forecast)
+arima_mdl <- auto.arima(tot_ts)
+arima_mdl
+
+tsdiag(arima_mdl)
+
+accuracy(arima_mdl)
+plot(forecast(arima_mdl,h=8))
+
+arima_md2 <- arima(tot_ts, order=c(0,1,2))
+pred <- predict(arima_md2, n.ahead = 8)
+ts.plot(tot_ts,pred$pred,lty=c(1,3))
