@@ -125,6 +125,9 @@ apt_data[,yyyym:=paste0(year,month)]
 lapply(locCode,function(x){apt_data[loc==x,gu:=locCode_nm[which(locCode==x)]]})
 
 8. 쓸데없는 분기 전처리 
+apt_data <- apt_data[-c(which(apt_data$yyyyqrt=="2011NA"))]
+apt_data <- apt_data[-c(which(apt_data$yyyyqrt=="2012NA"))]
+apt_data <- apt_data[-c(which(apt_data$yyyyqrt=="2013NA"))]
 apt_data <- apt_data[-c(which(apt_data$yyyyqrt=="2014NA"))]
 apt_data <- apt_data[-c(which(apt_data$yyyyqrt=="2015NA"))]
 apt_data <- apt_data[-c(which(apt_data$yyyyqrt=="2016NA"))]
