@@ -187,7 +187,7 @@ gu_list[which(runs_p>0.05)]
 gwanak_data <- apt_data[gu=="양천구",]
 gwanak_price <- aggregate(gwanak_data$price,by=list(gwanak_data$yyyyqrt),mean) 
 names(gwanak_price)<-c('yyyyqrt','price')
-tot_ts <- ts(gwanak_price$price,start=c(2014,1),frequency = 4)
+tot_ts <- ts(gwanak_price$price,start=c(2011,1),frequency = 4)
 plot(stl(tot_ts,s.window = 'periodic'))
     
 12. Arima 모형 사용 - 양천구 매매 추이 분석 
