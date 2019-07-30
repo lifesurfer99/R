@@ -91,13 +91,14 @@ save(result_apt_data, file="apt_item_sales_dt2.Rdata")
 
 result_apt_data1<-get(load("apt_item_sales_dt.Rdata")) #load 2014~2016년도 데이터
 result_apt_data2<-get(load("apt_item_sales_dt2.Rdata")) #load 2017~2019년도 데이터
+result_apt_data3<-get(load("apt_item_sales_dt3.Rdata")) #load 2011~2013년도 데이터
 
 6. 데이터 전처리 시작 
 
 apt_data1<-data.table(result_apt_data1)
 apt_data2<-data.table(result_apt_data2)
 apt_data3<-data.table(result_apt_data3)
-apt_data<-rbindlist(list(apt_data1,apt_data2))
+apt_data<-rbindlist(list(apt_data1,apt_data2,apt_data3))
 # 데이터 내 결측 값 확인
 colSums(is.na(apt_data)) 
 
