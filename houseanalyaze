@@ -154,6 +154,10 @@ ggplot(apt_data_by_gu_qrt,aes(x=yyyyqrt,y=pricemean,group=gu))+
 gu_meanprice <- as.data.table(aggregate(apt_data$price,by=list(apt_data$yyyyqrt,apt_data$gu),mean))
 head(gu_meanprice)
 
+names(gu_meanprice)<- c('yyyyqrt','gu','price')
+#중복없이 구 추출
+gu_list <- unique(gu_meanprice$gu)
+
 #랜덤성 검정을 위한 패키지 로드
 library(lawstat)
 
